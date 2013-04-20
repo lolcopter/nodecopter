@@ -7,7 +7,7 @@ var _       = require('underscore'),
     flyingStr = new Bacon.Bus(),
     flying = flyingStr.skipDuplicates().toProperty(false),
     pngStream = new Bacon.Bus(),
-    pngStreamThrottled = pngStream.throttle(100),
+    pngStreamThrottled = pngStream.toProperty().sample(100),
     navdata = new Bacon.Bus(),
 
     navdataclean = navdata
@@ -49,17 +49,23 @@ var _       = require('underscore'),
       return it;
     }),
     biggestFace = faces.map(function(it) {
-
+      return _.sortBy(_.map(it, function(face) { return {x: face.x, y: face.y, height: face.height, width: face.width, size: face.width * face.height } }), function(it) { return it.size })
+    }).map(function(it) {
+      if (it.length > 0) {
+        return _.last(it);
+      } else {
+        return null;
+      }
     }),
-    newImage = image.zip(faces).map(function(args) {
+    newImage = image.zip(biggestFace).map(function(args) {
         var image = args[0],
-            faces = args[1];
-
-        for (var i=0;i<faces.length; i++){
-          var x = faces[i]
+            x = args[1];
+        if (x == null) {
+          return image.toBuffer();
+        } else {
           image.ellipse(x.x + x.width/2, x.y + x.height/2, x.width/2, x.height/2);
+          return image.toBuffer();
         }
-        return image.toBuffer();
     }),
     xFace1   = faces.filter(function(it) { return it.length > 0 }).map(function(it) { return it[0].x }).toProperty(),    
     numFaces = faces.map(function(it) { return it.length }).skipDuplicates().toProperty(0),
@@ -68,10 +74,12 @@ var _       = require('underscore'),
                       .filter(function(it) { return it == 0; })
                       .map(Bacon.constant("stop"))
                       .merge(
-                        xFace1.changes().map(function(it) {
-                          if (it < 300) {
+                        biggestFace.map(function(it) {
+                          if (it == null) {
+                            return "stop"
+                          } else if (it.x < 200) {
                             return "left"
-                          } else if (it > 340) {
+                          } else if (it.x > 440) {
                             return "right"
                           } else {
                             return "stop"
@@ -117,15 +125,12 @@ flying.onValue(function(flying) {
 turnDirection.onValue(function(it) {
   switch (it) {
     case "left":
-      console.log("turning left...")
-      client.counterClockwise(0.2);
+      client.counterClockwise(0.1);
       break;
     case "right":
-      console.log("turning right...")
-      client.clockwise(0.2);
+      client.clockwise(0.1);
       break;
     case "stop":
-      console.log("stopping")
       client.clockwise(0);
       break;
   }
@@ -139,4 +144,4 @@ server.onInput(function(data) {
   }, 30000)
 })
 
-stateSummary.sample(250).onValue(server.emit);
+stateSummary.sample(500).onValue(server.emit);
