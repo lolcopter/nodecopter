@@ -1,0 +1,18 @@
+{
+  "name": "simpledrone",
+  "version": "0.0.1",
+  "description": "ERROR: No README.md file found!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:lolcopter/nodecopter.git"
+  },
+  "author": "",
+  "license": "BSD",
+  "dependencies": {
+    "ar-drone": "0.0.5"
+  }
+}
