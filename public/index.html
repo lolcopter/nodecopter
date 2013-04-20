@@ -6,7 +6,10 @@
     $(function() {
       var socket = io.connect('http://localhost');
       socket.on('state', function (data) {
-        $("#state").text(JSON.stringify(data));
+        $("#altitude").text(data.altitude);
+        $("#battery").text(data.battery);
+        $("#faces").text(data.numFaces);
+        $("#camera").attr("src", "data:image/png;base64," + data.png);
       });
       $("#btn").click(function() {
         console.log("o hai")
@@ -16,5 +19,8 @@
     </script>
 <body>
     <button id="btn">Do cycle</button><br />
-    <pre id="state"></pre>
+    <p><b>altitude: <span id="altitude"></span></p>
+    <p><b>battery: <span id="battery"></span></p>
+    <p><b>faces seen: <span id="faces"></span></p>
+    <img id="camera" />
     

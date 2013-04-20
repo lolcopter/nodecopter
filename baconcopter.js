@@ -1,12 +1,15 @@
 var _       = require('underscore'),
     server  = require('./lib/server'),
     Bacon   = require('baconjs'),
+    cv      = require('opencv'),
     arDrone = require('ar-drone'),
     client  = arDrone.createClient({ip: '192.168.1.1'}),
     pngStream = new Bacon.Bus(),
+    pngStreamThrottled = pngStream.throttle(1000),
     navdata = new Bacon.Bus(),
     flyingStr = new Bacon.Bus(),
     flying = flyingStr.skipDuplicates().toProperty(false),
+
     navdataclean = navdata
       .map(function(it) {
         if (!it.demo) {
@@ -15,22 +18,41 @@ var _       = require('underscore'),
           return it;
         }
     }).filter(function(it) { return it != null }),
+
     altitude = navdataclean.map(function(it) {
       return it.demo.altitude
     }).skipDuplicates(),
+
     battery = navdataclean.map(function(it) {
       return it.demo.batteryPercentage;
     }).skipDuplicates(),
+
     toolow  = altitude.map(function(it) {
       return it < 1;
     }).skipDuplicates(),
-    toohigh  = altitude.map(function(it) {
+
+    toohigh = altitude.map(function(it) {
       return it > 2;
     }).skipDuplicates(),
+
+    faces   = pngStreamThrottled.flatMapLatest(function(it) {
+      return Bacon.fromNodeCallback(cv.readImage, it);
+    }).flatMapLatest(function(it) {
+      return Bacon.fromCallback(function(callback) {
+        it.detectObject("node_modules/opencv/data/haarcascade_frontalface_alt2.xml", {}, function (err, faces) {
+          callback(faces);
+        });
+      })
+    }).map(function(it) {
+      return it;
+    }).skipDuplicates(),
+    numFaces = faces.map(function(it) { return it.length }).skipDuplicates().toProperty();
+
     stateSummary = Bacon.combineTemplate({
       altitude: altitude,
       battery: battery,
-      png: pngStream.throttle(1000).map(function(it) { return it.toString('base64'); }).toProperty()
+      png: pngStreamThrottled.map(function(it) { return it.toString('base64'); }).toProperty(),
+      numFaces: numFaces
     });
 
 // try flying

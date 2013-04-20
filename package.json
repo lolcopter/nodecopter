@@ -14,6 +14,9 @@
   "license": "BSD",
   "dependencies": {
     "ar-drone": "0.0.5",
-    "socket.io": "~0.9.14"
+    "socket.io": "~0.9.14",
+    "opencv": "git://github.com/peterbraden/node-opencv.git#440a72",
+    "underscore": "~1.4.4",
+    "express": "~3.2.0"
   }
 }
