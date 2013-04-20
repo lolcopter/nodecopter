@@ -7,8 +7,9 @@ var _       = require('underscore'),
     flyingStr = new Bacon.Bus(),
     flying = flyingStr.skipDuplicates().toProperty(false),
     pngStream = new Bacon.Bus(),
-    pngStreamThrottled = pngStream.toProperty().sample(100),
+    pngStreamThrottled = pngStream.toProperty().sample(250),
     navdata = new Bacon.Bus(),
+    takeAction = new Bacon.Bus(),
 
     navdataclean = navdata
       .map(function(it) {
@@ -93,6 +94,7 @@ var _       = require('underscore'),
       numFaces: numFaces,
       png: newImage.map(function(it) { return it.toString('base64'); })
     });
+newImage.onValue(function() {});
 
 // try flying
 client.disableEmergency();
@@ -122,26 +124,46 @@ flying.onValue(function(flying) {
   }
 })
 
-turnDirection.onValue(function(it) {
-  switch (it) {
-    case "left":
-      client.counterClockwise(0.1);
-      break;
-    case "right":
-      client.clockwise(0.1);
-      break;
-    case "stop":
-      client.clockwise(0);
-      break;
+var action = ["stop", 50];
+biggestFace.map(function(face) {
+  if (face == null) {
+    return ["stop", 50];
+  } else {
+    var diff = Math.abs(320 - face.x)
+    var ms = Math.min((diff / 4.54) * 0.01 * 1000, 100);
+    if (face.x < 200) {
+      return ["left", ms, face.x];
+    } else if (face.x > 440) {
+      return ["right", ms, face.x];
+    } else {
+      return ["stop", 50];
+    }
   }
-})
+}).onValue(function(it) {
+  action = it;
+});
+var doIt = function() {
+  console.log(action);
+  if (action[0] == "left") {
+    client.counterClockwise(0.5);
+  } else if (action[0] == "right") {
+    client.clockwise(0.5);
+  } else {
+    client.stop();
+  }
+
+  setTimeout(doIt, action[1]);
+  action = ["stop", 50];
+}
+setTimeout(doIt, 200)
 
 var server = server.start(3000);
 server.onInput(function(data) {
-  flyingStr.push(true);
-  setTimeout(function() {
+  if (data.takeoff) {
+    flyingStr.push(true);
+  } else if (data.land) {
     flyingStr.push(false);
-  }, 30000)
+  }
 })
 
 stateSummary.sample(500).onValue(server.emit);
