@@ -12,7 +12,6 @@
         $("#camera").attr("src", "data:image/png;base64," + data.png);
       });
       $("#btn").click(function() {
-        console.log("o hai")
         socket.emit('input', {foo: 'bar'});
       })
   });
