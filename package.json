@@ -13,6 +13,7 @@
   "author": "",
   "license": "BSD",
   "dependencies": {
-    "ar-drone": "0.0.5"
+    "ar-drone": "0.0.5",
+    "socket.io": "~0.9.14"
   }
 }

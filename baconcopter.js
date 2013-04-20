@@ -4,12 +4,15 @@ var _       = require('underscore'),
     arDrone = require('ar-drone'),
     client  = arDrone.createClient({ip: '192.168.1.1'}),
     navdata = new Bacon.Bus(),
-    navdataclean = navdata.map(function(it) {
-      if (!it.demo) {
-        return null;
-      } else {
-        return it;
-      }
+    flyingStr = new Bacon.Bus(),
+    flying = flyingStr.skipDuplicates().toProperty(false),
+    navdataclean = navdata
+      .map(function(it) {
+        if (!it.demo) {
+          return null;
+        } else {
+          return it;
+        }
     }).filter(function(it) { return it != null }),
     altitude = navdataclean.map(function(it) {
       return it.demo.altitude
@@ -26,8 +29,7 @@ var _       = require('underscore'),
     stateSummary = Bacon.combineTemplate({
       altitude: altitude,
       battery: battery
-    }),
-    landing = false;
+    });
 
 // try flying
 client.disableEmergency();
@@ -37,31 +39,32 @@ client.on("navdata", navdata.push);
 
 toolow.filter(function(it) {
       return it;
-    }).onValue(function() {
-  console.log("toolow");
-  if (!landing) {
+    }).filter(flying).onValue(function() {
     client.up(1);
-  }
 });
 
 toohigh.filter(function(it) {
       return it;
-}).onValue(function() {
-  console.log("toohigh");
-  if (!landing) {
-    client.down(1);
-  }
+}).filter(flying).onValue(function() {
+  client.down(1);
 });
+
+flying.onValue(function(flying) {
+  console.log("flying", flying);
+  if (flying) {
+    client.takeoff();
+  } else {
+    client.stop();
+    client.land();
+  }
+})
 
 var server = server.start(3000);
 server.onInput(function(data) {
-    client.takeoff();
-    client
-      .after(20000, function() {
-        landing = true;
-        this.stop();
-        this.land();
-      });
+  flyingStr.push(true);
+  setTimeout(function() {
+    flyingStr.push(false);
+  }, 10000)
 })
 
-stateSummary.onValue(server.emit);
+stateSummary.throttle(100).onValue(server.emit);
