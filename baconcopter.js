@@ -1,4 +1,5 @@
 var _       = require('underscore'),
+    server  = require('./lib/server'),
     Bacon   = require('baconjs'),
     arDrone = require('ar-drone'),
     client  = arDrone.createClient({ip: '192.168.1.1'}),
@@ -15,13 +16,17 @@ var _       = require('underscore'),
     }).skipDuplicates(),
     battery = navdataclean.map(function(it) {
       return it.demo.batteryPercentage;
-    }).skipDuplicates()
+    }).skipDuplicates(),
     toolow  = altitude.map(function(it) {
       return it < 1;
-    }).skipDuplicates();
+    }).skipDuplicates(),
     toohigh  = altitude.map(function(it) {
       return it > 2;
     }).skipDuplicates(),
+    stateSummary = Bacon.combineTemplate({
+      altitude: altitude,
+      battery: battery
+    }),
     landing = false;
 
 // try flying
@@ -29,8 +34,6 @@ client.disableEmergency();
 
 client.config('general:navdata_demo', 'FALSE');
 client.on("navdata", navdata.push);
-
-client.takeoff();
 
 toolow.filter(function(it) {
       return it;
@@ -40,7 +43,6 @@ toolow.filter(function(it) {
     client.up(1);
   }
 });
-battery.map(function(it) { return "battery: " + it + "%" }). log();
 
 toohigh.filter(function(it) {
       return it;
@@ -51,9 +53,15 @@ toohigh.filter(function(it) {
   }
 });
 
-client
-  .after(20000, function() {
-    landing = true;
-    this.stop();
-    this.land();
-  });
+var server = server.start(3000);
+server.onInput(function(data) {
+    client.takeoff();
+    client
+      .after(20000, function() {
+        landing = true;
+        this.stop();
+        this.land();
+      });
+})
+
+stateSummary.onValue(server.emit);
