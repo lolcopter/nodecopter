@@ -3,6 +3,7 @@ var _       = require('underscore'),
     Bacon   = require('baconjs'),
     arDrone = require('ar-drone'),
     client  = arDrone.createClient({ip: '192.168.1.1'}),
+    pngStream = new Bacon.Bus(),
     navdata = new Bacon.Bus(),
     flyingStr = new Bacon.Bus(),
     flying = flyingStr.skipDuplicates().toProperty(false),
@@ -28,7 +29,8 @@ var _       = require('underscore'),
     }).skipDuplicates(),
     stateSummary = Bacon.combineTemplate({
       altitude: altitude,
-      battery: battery
+      battery: battery,
+      png: pngStream.throttle(1000).map(function(it) { return it.toString('base64'); }).toProperty()
     });
 
 // try flying
@@ -36,6 +38,7 @@ client.disableEmergency();
 
 client.config('general:navdata_demo', 'FALSE');
 client.on("navdata", navdata.push);
+client.createPngStream().on('data', pngStream.push);
 
 toolow.filter(function(it) {
       return it;
